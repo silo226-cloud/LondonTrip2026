@@ -35,13 +35,49 @@ row('28','12:00','13:30','Dare Skywalk','tottenham','football','planned','Explor
 row('28','13:30','14:30','ארוחת צהריים – טוטנהאם','tottenham','football')
 ];
 let data;try{const stored=JSON.parse(localStorage.getItem('londontrip-events'));data=Array.isArray(stored)?stored:SEED}catch{data=SEED}
+
+// Official attraction websites; where no reliable official page is known, no link is shown.
+const OFFICIAL={
+queens:'https://www.rmg.co.uk/queens-house',
+greenwich:'https://www.greenwichmarket.london/',
+meridian:'https://www.rmg.co.uk/royal-observatory',
+tunnel:'https://www.royalgreenwich.gov.uk/',
+pier:'https://www.thamesclippers.com/',
+tower:'https://www.hrp.org.uk/tower-of-london/',
+bridge:'https://www.towerbridge.org.uk/',
+borough:'https://boroughmarket.org.uk/',
+tussauds:'https://www.madametussauds.com/london/',
+british:'https://www.britishmuseum.org/',
+camden:'https://camdenmarket.com/',
+covent:'https://www.coventgarden.london/',
+wellington:'https://www.english-heritage.org.uk/visit/places/wellington-arch/',
+palace:'https://www.rct.uk/visit/buckingham-palace',
+abbey:'https://www.westminster-abbey.org/',
+frameless:'https://frameless.com/',
+natural:'https://www.nhm.ac.uk/',
+science:'https://www.sciencemuseum.org.uk/',
+sky:'https://skygarden.london/',
+paul:'https://www.stpauls.co.uk/',
+leadenhall:'https://leadenhallmarket.co.uk/',
+horizon:'https://horizon22.co.uk/',
+tottenham:'https://www.tottenhamhotspur.com/the-stadium/visitor-attractions/'
+};
+function officialUrl(x){
+ const k=keyOf(x);
+ if(k==='tottenham'&&/ארוחת/.test(x.title))return null;
+ if(k==='tottenham'&&/Skywalk/i.test(x.title))return 'https://www.tottenhamhotspur.com/the-stadium/visitor-attractions/dare-skywalk/';
+ if(k==='tottenham'&&/Tour/i.test(x.title))return 'https://www.tottenhamhotspur.com/the-stadium/visitor-attractions/stadium-tours/';
+ return OFFICIAL[k]||null;
+}
+function openOfficial(id){const x=data.find(y=>y.id===id);const url=x&&officialUrl(x);if(url)window.open(url,'_blank','noopener,noreferrer')}
+
 let current='23',editing=null,map=null,markers=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const save=()=>localStorage.setItem('londontrip-events',JSON.stringify(data));
 const todays=()=>data.filter(x=>x.day===current).sort((a,b)=>a.time.localeCompare(b.time));
 function maps(x,mode='walking'){const q=x.coords?x.coords.join(','):x.place;window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q)+'&travelmode='+mode,'_blank','noopener')}
 function routeDay(mode){const xs=todays().filter(x=>x.coords);if(!xs.length)return alert('אין מיקומים ליום הזה');const first=xs[0],last=xs[xs.length-1];const mids=xs.slice(1,-1).map(x=>x.coords.join(',')).join('|');let url='https://www.google.com/maps/dir/?api=1&origin='+first.coords.join(',')+'&destination='+last.coords.join(',')+'&travelmode='+mode;if(mids)url+='&waypoints='+encodeURIComponent(mids);window.open(url,'_blank','noopener')}
-function render(){document.getElementById('days').innerHTML=DAYS.map(([d,name])=>'<button class="day '+(d===current?'active':'')+'" onclick="chooseDay(\''+d+'\')">'+name+'<br>'+d+'/10</button>').join('');let dd=DAYS.find(x=>x[0]===current);document.getElementById('dayName').textContent=dd[1]+' '+dd[0]+'/10';document.getElementById('count').textContent=todays().length+' פעילויות';document.getElementById('heading').textContent=dd[2];document.getElementById('cards').innerHTML=todays().map(x=>'<article class="panel"><div class="item"><img class="thumb" loading="lazy" src="'+esc(x.photo||pic('city'))+'" alt=""><div class="info"><div class="time">'+esc(x.time)+'–'+esc(x.end)+'</div><div class="title">'+esc(x.title)+'</div><span class="tag">'+({booked:'✓ הוזמן',planned:'מתוכנן',optional:'אופציונלי'}[x.status]||'מתוכנן')+'</span><p class="muted">'+esc(x.note)+'</p></div></div><div class="actions"><button onclick="navigateId(\''+x.id+'\')">📍 Google Maps</button><button onclick="editId(\''+x.id+'\')">✎ עריכה</button><button onclick="removeId(\''+x.id+'\')">🗑 מחיקה</button></div></article>').join('')||'<div class="panel">אין פעילויות ליום הזה. אפשר להוסיף פעילות חדשה.</div>';drawMap()}
+function render(){document.getElementById('days').innerHTML=DAYS.map(([d,name])=>'<button class="day '+(d===current?'active':'')+'" onclick="chooseDay(\''+d+'\')">'+name+'<br>'+d+'/10</button>').join('');let dd=DAYS.find(x=>x[0]===current);document.getElementById('dayName').textContent=dd[1]+' '+dd[0]+'/10';document.getElementById('count').textContent=todays().length+' פעילויות';document.getElementById('heading').textContent=dd[2];document.getElementById('cards').innerHTML=todays().map(x=>'<article class="panel"><div class="item"><img class="thumb" loading="lazy" src="'+esc(x.photo||pic('city'))+'" alt=""><div class="info"><div class="time">'+esc(x.time)+'–'+esc(x.end)+'</div><div class="title">'+(officialUrl(x)?'<a href="'+esc(officialUrl(x))+'" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;text-decoration-color:#e9bd6e;text-underline-offset:4px">'+esc(x.title)+' ↗</a>':esc(x.title))+'</div><span class="tag">'+({booked:'✓ הוזמן',planned:'מתוכנן',optional:'אופציונלי'}[x.status]||'מתוכנן')+'</span><p class="muted">'+esc(x.note)+'</p></div></div><div class="actions">'+(officialUrl(x)?'<button onclick="openOfficial(\''+x.id+'\')">🌐 אתר רשמי</button>':'')+'<button onclick="navigateId(\''+x.id+'\')">📍 Google Maps</button><button onclick="editId(\''+x.id+'\')">✎ עריכה</button><button onclick="removeId(\''+x.id+'\')">🗑 מחיקה</button></div></article>').join('')||'<div class="panel">אין פעילויות ליום הזה. אפשר להוסיף פעילות חדשה.</div>';drawMap()}
 function chooseDay(d){current=d;render()}
 function navigateId(id){let x=data.find(x=>x.id===id);if(x)maps(x)}
 function editId(id){editing=id;let x=data.find(x=>x.id===id);document.getElementById('editTitle').textContent='עריכת פעילות';openForm(x)}
