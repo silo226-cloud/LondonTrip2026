@@ -89,7 +89,6 @@ function exportData(){const blob=new Blob([JSON.stringify({version:1,events:data
 async function importData(input){if(!input.files?.[0])return;try{const obj=JSON.parse(await input.files[0].text());if(!Array.isArray(obj.events))throw Error();if(!confirm('להחליף את המסלול הקיים במסלול המיובא?'))return;data=obj.events.filter(x=>x&&typeof x.title==='string'&&typeof x.day==='string');save();render()}catch{alert('קובץ לא תקין')}input.value=''}
 function drawMap(){const el=document.getElementById('map');if(typeof L==='undefined'){el.innerHTML='<p style="padding:15px">המפה דורשת חיבור לאינטרנט. כפתורי Google Maps עדיין זמינים.</p>';return}if(!map){map=L.map(el).setView([51.51,-.12],11);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map)}markers.forEach(m=>map.removeLayer(m));markers=[];let xs=todays().filter(x=>Array.isArray(x.coords));xs.forEach((x,i)=>{let m=L.marker(x.coords).addTo(map).bindPopup('<b>'+esc(x.title)+'</b><br>'+esc(x.time));markers.push(m)});if(xs.length){let line=L.polyline(xs.map(x=>x.coords),{color:'#e9bd6e',weight:3}).addTo(map);markers.push(line);map.fitBounds(line.getBounds().pad(.25),{maxZoom:14})}else map.setView([51.51,-.12],11);setTimeout(()=>map.invalidateSize(),100)}
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-render();
 
 // Photos per attraction: Wikipedia page images (CC-licensed or Wikipedia-hosted), with distinct fallback.
 const WIKI={
@@ -128,4 +127,5 @@ async function updateAttractionPhotos(){
     if(changed){save();render()}
   }
 }
+render();
 updateAttractionPhotos();
