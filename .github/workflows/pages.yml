@@ -24,3 +24,4 @@ jobs:
           path: .
       - id: deployment
         uses: actions/deploy-pages@v4
+# Triggered after repository setup
