@@ -54,3 +54,42 @@ async function importData(input){if(!input.files?.[0])return;try{const obj=JSON.
 function drawMap(){const el=document.getElementById('map');if(typeof L==='undefined'){el.innerHTML='<p style="padding:15px">המפה דורשת חיבור לאינטרנט. כפתורי Google Maps עדיין זמינים.</p>';return}if(!map){map=L.map(el).setView([51.51,-.12],11);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map)}markers.forEach(m=>map.removeLayer(m));markers=[];let xs=todays().filter(x=>Array.isArray(x.coords));xs.forEach((x,i)=>{let m=L.marker(x.coords).addTo(map).bindPopup('<b>'+esc(x.title)+'</b><br>'+esc(x.time));markers.push(m)});if(xs.length){let line=L.polyline(xs.map(x=>x.coords),{color:'#e9bd6e',weight:3}).addTo(map);markers.push(line);map.fitBounds(line.getBounds().pad(.25),{maxZoom:14})}else map.setView([51.51,-.12],11);setTimeout(()=>map.invalidateSize(),100)}
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 render();
+
+// Photos per attraction: Wikipedia page images (CC-licensed or Wikipedia-hosted), with distinct fallback.
+const WIKI={
+queens:"Queen's House",greenwich:"Greenwich Market",meridian:"Royal Observatory, Greenwich",tunnel:"Greenwich foot tunnel",pier:"Greenwich Pier",
+tower:"Tower of London",bridge:"Tower Bridge",borough:"Borough Market",londonbridge:"London Bridge",tussauds:"Madame Tussauds London",
+british:"British Museum",camden:"Camden Market",covent:"Covent Garden",wellington:"Wellington Arch",palace:"Buckingham Palace",
+abbey:"Westminster Abbey",bigben:"Big Ben",frameless:"Frameless (art exhibition)",natural:"Natural History Museum, London",
+science:"Science Museum, London",sky:"Sky Garden, London",paul:"St Paul's Cathedral",millennium:"Millennium Bridge, London",
+leadenhall:"Leadenhall Market",horizon:"22 Bishopsgate",tottenham:"Tottenham Hotspur Stadium"};
+const fallback={
+queens:"https://commons.wikimedia.org/wiki/Special:FilePath/Queen%27s_House,_Greenwich-7354947198.jpg?width=500",
+tunnel:"https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=500",
+};
+const keyOf=x=>{if(!Array.isArray(x.coords))return null;return Object.keys(P).find(k=>P[k][0]===x.coords[0]&&P[k][1]===x.coords[1])||null};
+const originalPhotos=new Set(Object.values(photos).map(v=>'https://images.unsplash.com/'+v+'?w=640&q=75&fit=crop'));
+const resolvedImages={};
+async function updateAttractionPhotos(){
+  const keys=[...new Set(data.map(keyOf).filter(Boolean))];
+  for(let i=0;i<keys.length;i+=5){
+    await Promise.all(keys.slice(i,i+5).map(async k=>{
+      try{
+        const q=new URLSearchParams({action:'query',format:'json',origin:'*',prop:'pageimages',pithumbsize:'600',redirects:'1',titles:WIKI[k]});
+        const response=await fetch('https://en.wikipedia.org/w/api.php?'+q.toString());
+        if(!response.ok)throw Error('photo lookup failed');
+        const result=await response.json();
+        const page=Object.values(result.query?.pages||{})[0];
+        const url=page?.thumbnail?.source||fallback[k];
+        if(url&&/^https:\/\//.test(url))resolvedImages[k]=url;
+      }catch{if(fallback[k])resolvedImages[k]=fallback[k]}
+    }));
+    let changed=false;
+    for(const x of data){
+      const k=keyOf(x),url=k&&resolvedImages[k];
+      if(url&&(originalPhotos.has(x.photo)||!x.photo||x.photo===pic('city'))&&x.photo!==url){x.photo=url;changed=true}
+    }
+    if(changed){save();render()}
+  }
+}
+updateAttractionPhotos();
