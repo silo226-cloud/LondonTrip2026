@@ -16,7 +16,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import kotlin.math.max
 
-class MainActivity : Activity() {
+class MainActivity : BaseScreen() {
     private lateinit var reader: BatteryReader
     private val handler = Handler(Looper.getMainLooper())
 
@@ -29,7 +29,6 @@ class MainActivity : Activity() {
     private lateinit var healthBar: MeterBar
     private lateinit var tempBar: MeterBar
     private lateinit var cableBar: MeterBar
-    private val values = HashMap<String, TextView>()
 
     // Charging-session stats (reset each time the charger is plugged in)
     private var wasCharging = false
@@ -72,6 +71,10 @@ class MainActivity : Activity() {
         // Level ring
         ring = LevelRing(this)
         root.addView(card(0xFF131A33.toInt(), 0xFF1B2450.toInt()).apply { addView(ring) })
+
+        root.addView(button("🔋  בדיקת בריאות פאוור בנק  ›", 0xFF7C3AED.toInt(), 0xFF2563EB.toInt()) {
+            startActivity(android.content.Intent(this, PowerBankActivity::class.java))
+        })
 
         // Power in
         root.addView(card(0xFF10243A.toInt(), 0xFF0E3B3F.toInt()).apply {
@@ -129,54 +132,6 @@ class MainActivity : Activity() {
         })
 
         return ScrollView(this).apply { addView(root); setBackgroundColor(0xFF0B1020.toInt()) }
-    }
-
-    private fun card(c1: Int, c2: Int) = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(c1, c2)).apply {
-            cornerRadius = dp(22f); setStroke(dp(1f).toInt(), 0x22FFFFFF)
-        }
-        val p = dp(16f).toInt(); setPadding(p, p, p, p)
-        layoutParams = lp(top = 14f)
-    }
-
-    private fun lp(top: Float = 0f) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top).toInt() }
-
-    private fun text(s: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
-        text = s; textSize = sp; setTextColor(color)
-        if (bold) typeface = Typeface.DEFAULT_BOLD
-        textDirection = View.TEXT_DIRECTION_RTL
-    }
-
-    private fun title(s: String) = text(s, 17f, Color.WHITE, bold = true)
-    private fun small(s: String) = text(s, 11.5f, 0x99FFFFFF.toInt()).apply { setPadding(0, dp(8f).toInt(), 0, 0) }
-
-    /** Two-column grid of label/value tiles. */
-    private fun grid(items: List<Pair<String, String>>): View {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        items.chunked(2).forEach { row ->
-            val r = LinearLayout(this)
-            row.forEach { (key, label) ->
-                val tile = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    background = GradientDrawable().apply { cornerRadius = dp(14f); setColor(0x14FFFFFF) }
-                    val p = dp(10f).toInt(); setPadding(p, p, p, p)
-                }
-                tile.addView(text(label, 11.5f, 0x99FFFFFF.toInt()))
-                val v = text("—", 17f, Color.WHITE, bold = true)
-                values[key] = v; tile.addView(v)
-                r.addView(tile, LinearLayout.LayoutParams(0, -1, 1f).apply {
-                    val m = dp(4f).toInt(); setMargins(m, m, m, m)
-                })
-            }
-            if (row.size == 1) r.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
-            col.addView(r)
-        }
-        return col.apply { layoutParams = lp(top = 8f) }
-    }
-
-    private fun set(key: String, v: String, color: Int = Color.WHITE) {
-        values[key]?.apply { text = v; setTextColor(color) }
     }
 
     // ---------------------------------------------------------------- data
