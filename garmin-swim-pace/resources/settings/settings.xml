@@ -1,0 +1,27 @@
+<settings>
+    <setting propertyKey="@Properties.paceMin" title="@Strings.PaceMinTitle">
+        <settingConfig type="numeric" min="0" max="9"/>
+    </setting>
+    <setting propertyKey="@Properties.paceSec" title="@Strings.PaceSecTitle">
+        <settingConfig type="numeric" min="0" max="59.99"/>
+    </setting>
+    <setting propertyKey="@Properties.mode" title="@Strings.ModeTitle">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.ModeAuto</listEntry>
+            <listEntry value="1">@Strings.ModeTempo</listEntry>
+            <listEntry value="2">@Strings.ModeGhost</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.poolLength" title="@Strings.PoolLengthTitle">
+        <settingConfig type="numeric" min="10" max="100"/>
+    </setting>
+    <setting propertyKey="@Properties.lengthsPerBeep" title="@Strings.LengthsPerBeepTitle">
+        <settingConfig type="numeric" min="1" max="20"/>
+    </setting>
+    <setting propertyKey="@Properties.checkpoint" title="@Strings.CheckpointTitle">
+        <settingConfig type="numeric" min="25" max="1000"/>
+    </setting>
+    <setting propertyKey="@Properties.threshold" title="@Strings.ThresholdTitle">
+        <settingConfig type="numeric" min="1" max="200"/>
+    </setting>
+</settings>

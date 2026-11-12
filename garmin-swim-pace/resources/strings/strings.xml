@@ -1,0 +1,14 @@
+<strings>
+    <string id="AppName">Swim Pace</string>
+
+    <string id="PaceMinTitle">Pace per 100m - minutes</string>
+    <string id="PaceSecTitle">Pace per 100m - seconds (e.g. 30 or 27.5)</string>
+    <string id="ModeTitle">Mode</string>
+    <string id="ModeAuto">Auto (pool = Tempo, open water = Ghost)</string>
+    <string id="ModeTempo">Tempo (vibrate every length)</string>
+    <string id="ModeGhost">Ghost (GPS ahead/behind)</string>
+    <string id="PoolLengthTitle">Pool length (m)</string>
+    <string id="LengthsPerBeepTitle">Tempo: lengths per vibration</string>
+    <string id="CheckpointTitle">Ghost: feedback every (m)</string>
+    <string id="ThresholdTitle">Ghost: tolerance (m)</string>
+</strings>

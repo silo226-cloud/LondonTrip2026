@@ -1,0 +1,9 @@
+<properties>
+    <property id="paceMin" type="number">1</property>
+    <property id="paceSec" type="float">30.0</property>
+    <property id="mode" type="number">0</property>
+    <property id="poolLength" type="number">25</property>
+    <property id="lengthsPerBeep" type="number">1</property>
+    <property id="checkpoint" type="number">100</property>
+    <property id="threshold" type="number">15</property>
+</properties>
