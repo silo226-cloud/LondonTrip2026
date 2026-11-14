@@ -12,6 +12,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Switch;
@@ -22,6 +24,8 @@ public class MainActivity extends Activity {
     private TextView status;
     private Button permissionButton;
     private Switch enabledSwitch;
+    private Button senseButton;
+    private TextView senseHelp;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,7 +69,21 @@ public class MainActivity extends Activity {
 
         root.addView(toggle("הצגת שניות", Prefs.SHOW_SECONDS, Prefs.showSeconds(this)));
         root.addView(toggle("הצגת תאריך מלא", Prefs.SHOW_DATE, Prefs.showDate(this)));
-        root.addView(toggle("טקסט לבן (כבוי = שחור)", Prefs.WHITE_TEXT, Prefs.whiteText(this)));
+        root.addView(colorPicker());
+
+        senseButton = new Button(this);
+        senseButton.setText("הפעלת צבע אוטומטי (בהגדרות נגישות)");
+        senseButton.setOnClickListener(v -> startActivity(
+                new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        root.addView(senseButton);
+
+        senseHelp = new TextView(this);
+        senseHelp.setText("בצבע אוטומטי השעון שחור על רקע בהיר ולבן על רקע כהה, כמו אייקוני הסוללה "
+                + "וה-Wi-Fi. כדי שזה יעבוד: הגדרות ← נגישות ← אפליקציות מותקנות ← "
+                + "\"שעון מלא – צבע אוטומטי\" ← להפעיל.\n"
+                + "אם האפשרות אפורה ולא ניתן להפעיל: הגדרות ← אפליקציות ← שעון מלא ← "
+                + "⋮ (למעלה) ← \"אפשר הגדרות מוגבלות\", ואז לנסות שוב.");
+        root.addView(senseHelp);
 
         root.addView(slider("גודל טקסט", Prefs.SIZE_SP, 8, 24, Prefs.sizeSp(this)));
         root.addView(slider("מיקום אופקי (משמאל)", Prefs.X_DP, 0, 300, Prefs.xDp(this)));
@@ -85,6 +103,10 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        refreshUi();
+    }
+
+    private void refreshUi() {
         boolean canDraw = Settings.canDrawOverlays(this);
         permissionButton.setVisibility(canDraw ? View.GONE : View.VISIBLE);
         enabledSwitch.setEnabled(canDraw);
@@ -92,6 +114,9 @@ public class MainActivity extends Activity {
         status.setText(canDraw
                 ? "ההרשאה ניתנה. אפשר להפעיל את השעון ולכוון את המיקום."
                 : "צריך קודם לאשר לאפליקציה להופיע מעל אפליקציות אחרות.");
+        boolean needSense = Prefs.colorMode(this) == Prefs.COLOR_AUTO && !ColorSenseService.isRunning();
+        senseButton.setVisibility(needSense ? View.VISIBLE : View.GONE);
+        senseHelp.setVisibility(needSense ? View.VISIBLE : View.GONE);
         syncService();
     }
 
@@ -111,6 +136,32 @@ public class MainActivity extends Activity {
         s.setPadding(0, dp(10), 0, dp(10));
         s.setOnCheckedChangeListener((b, on) -> Prefs.get(this).edit().putBoolean(key, on).apply());
         return s;
+    }
+
+    private View colorPicker() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(0, dp(12), 0, 0);
+        TextView t = new TextView(this);
+        t.setText("צבע השעון");
+        box.addView(t);
+        RadioGroup g = new RadioGroup(this);
+        g.setOrientation(RadioGroup.HORIZONTAL);
+        String[] labels = {"אוטומטי", "לבן", "שחור"};
+        int[] modes = {Prefs.COLOR_AUTO, Prefs.COLOR_WHITE, Prefs.COLOR_BLACK};
+        for (int i = 0; i < 3; i++) {
+            RadioButton b = new RadioButton(this);
+            b.setText(labels[i]);
+            b.setId(1000 + modes[i]);
+            g.addView(b);
+        }
+        g.check(1000 + Prefs.colorMode(this));
+        g.setOnCheckedChangeListener((group, id) -> {
+            Prefs.get(this).edit().putInt(Prefs.COLOR_MODE, id - 1000).apply();
+            refreshUi();
+        });
+        box.addView(g);
+        return box;
     }
 
     private View slider(String label, String key, int min, int max, int value) {

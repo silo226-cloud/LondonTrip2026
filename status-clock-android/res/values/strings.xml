@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">שעון מלא</string>
+    <string name="sense_name">שעון מלא – צבע אוטומטי</string>
+    <string name="sense_description">בודק אם החלק העליון של המסך בהיר או כהה, כדי שהשעון יהיה שחור על רקע בהיר ולבן על רקע כהה. האפליקציה לא שומרת שום תמונה ולא שולחת שום מידע, והבדיקה נעשית רק בטלפון.</string>
 </resources>

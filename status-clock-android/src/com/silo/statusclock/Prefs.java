@@ -12,7 +12,8 @@ final class Prefs {
     static final String SIZE_SP = "size_sp";
     static final String X_DP = "x_dp";
     static final String Y_DP = "y_dp";
-    static final String WHITE_TEXT = "white_text";
+    static final String COLOR_MODE = "color_mode";
+    static final int COLOR_AUTO = 0, COLOR_WHITE = 1, COLOR_BLACK = 2;
 
     private Prefs() {}
 
@@ -26,5 +27,5 @@ final class Prefs {
     static int sizeSp(Context c) { return get(c).getInt(SIZE_SP, 13); }
     static int xDp(Context c) { return get(c).getInt(X_DP, 16); }
     static int yDp(Context c) { return get(c).getInt(Y_DP, 6); }
-    static boolean whiteText(Context c) { return get(c).getBoolean(WHITE_TEXT, true); }
+    static int colorMode(Context c) { return get(c).getInt(COLOR_MODE, COLOR_AUTO); }
 }

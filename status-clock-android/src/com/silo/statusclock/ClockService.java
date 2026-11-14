@@ -13,6 +13,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -40,6 +41,10 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
     private WindowManager.LayoutParams params;
     private SimpleDateFormat format;
     private boolean ticking;
+
+    private static ClockService instance;
+    /** Last decision from ColorSenseService: true = light background, use black text. */
+    private static boolean autoDarkText;
 
     private final Runnable tick = new Runnable() {
         @Override public void run() {
@@ -75,6 +80,7 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
             return;
         }
 
+        instance = this;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         clockView = new TextView(this);
         clockView.setSingleLine(true);
@@ -119,6 +125,7 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
     }
 
     @Override public void onDestroy() {
+        if (instance == this) instance = null;
         stopTicking();
         Prefs.get(this).unregisterOnSharedPreferenceChangeListener(this);
         try { unregisterReceiver(screenReceiver); } catch (IllegalArgumentException ignored) {}
@@ -145,11 +152,45 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
     private void applyStyle() {
         buildFormat();
         clockView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Prefs.sizeSp(this));
-        boolean white = Prefs.whiteText(this);
-        clockView.setTextColor(white ? Color.WHITE : Color.BLACK);
-        clockView.setShadowLayer(3f, 0f, 0f, white ? 0xCC000000 : 0xCCFFFFFF);
+        applyColor();
         params.x = dp(Prefs.xDp(this));
         params.y = dp(Prefs.yDp(this));
+    }
+
+    private void applyColor() {
+        int mode = Prefs.colorMode(this);
+        boolean white = mode == Prefs.COLOR_WHITE
+                || (mode == Prefs.COLOR_AUTO && !(ColorSenseService.isRunning() && autoDarkText));
+        clockView.setTextColor(white ? Color.WHITE : Color.BLACK);
+        // A soft halo only for fixed colours; in auto mode the colour already matches the background.
+        float r = mode == Prefs.COLOR_AUTO && ColorSenseService.isRunning() ? 0f : 3f;
+        clockView.setShadowLayer(r, 0f, 0f, white ? 0xCC000000 : 0xCCFFFFFF);
+    }
+
+    /** Re-evaluate the colour, e.g. when the auto-colour service is switched on or off. */
+    static void refreshColor() {
+        if (isShowing()) instance.applyColor();
+    }
+
+    static boolean isShowing() { return instance != null && instance.clockView != null; }
+
+    /** Screen-space rectangle of the clock text, so the colour sampler can ignore it. */
+    static Rect clockBounds() {
+        if (!isShowing()) return null;
+        TextView v = instance.clockView;
+        int[] loc = new int[2];
+        v.getLocationOnScreen(loc);
+        return new Rect(loc[0], loc[1], loc[0] + v.getWidth(), loc[1] + v.getHeight());
+    }
+
+    /** Called on the main thread with the status-bar background brightness (0 = black, 1 = white). */
+    static void onBackgroundLuminance(float lum) {
+        boolean dark = autoDarkText;
+        if (lum > 0.62f) dark = true;        // hysteresis: avoid flicker on mid-grey backgrounds
+        else if (lum < 0.45f) dark = false;
+        if (dark == autoDarkText) return;
+        autoDarkText = dark;
+        if (isShowing()) instance.applyColor();
     }
 
     private int dp(int v) {
