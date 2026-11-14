@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         TextView tip = new TextView(this);
         tip.setPadding(0, dp(20), 0, 0);
         tip.setText("טיפ: כדי שהשעון המקורי לא יופיע מתחת, ב-Good Lock ← QuickStar ← Clock "
-                + "בחרי HIDE.\n\nאם השעון נעלם אחרי זמן מה: הגדרות ← אפליקציות ← שעון מלא ← "
+                + "יש לבחור HIDE.\n\nאם השעון נעלם אחרי זמן מה: הגדרות ← אפליקציות ← שעון מלא ← "
                 + "סוללה ← \"ללא הגבלה\".");
         root.addView(tip);
 
