@@ -1,0 +1,30 @@
+package com.silo.statusclock;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+/** Persisted user settings for the overlay clock. */
+final class Prefs {
+    static final String NAME = "clock_prefs";
+    static final String ENABLED = "enabled";
+    static final String SHOW_SECONDS = "show_seconds";
+    static final String SHOW_DATE = "show_date";
+    static final String SIZE_SP = "size_sp";
+    static final String X_DP = "x_dp";
+    static final String Y_DP = "y_dp";
+    static final String WHITE_TEXT = "white_text";
+
+    private Prefs() {}
+
+    static SharedPreferences get(Context c) {
+        return c.getSharedPreferences(NAME, Context.MODE_PRIVATE);
+    }
+
+    static boolean enabled(Context c) { return get(c).getBoolean(ENABLED, false); }
+    static boolean showSeconds(Context c) { return get(c).getBoolean(SHOW_SECONDS, true); }
+    static boolean showDate(Context c) { return get(c).getBoolean(SHOW_DATE, true); }
+    static int sizeSp(Context c) { return get(c).getInt(SIZE_SP, 13); }
+    static int xDp(Context c) { return get(c).getInt(X_DP, 16); }
+    static int yDp(Context c) { return get(c).getInt(Y_DP, 6); }
+    static boolean whiteText(Context c) { return get(c).getBoolean(WHITE_TEXT, true); }
+}
