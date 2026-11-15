@@ -12,6 +12,7 @@ import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Looks at the top strip of the screen and tells the clock whether the background behind
@@ -101,13 +102,20 @@ public class ColorSenseService extends AccessibilityService {
         });
     }
 
+    private static boolean insideAny(List<Rect> rects, int x, int y) {
+        for (Rect r : rects) {
+            if (x >= r.left - 6 && x <= r.right + 6 && y >= r.top - 6 && y <= r.bottom + 6) return true;
+        }
+        return false;
+    }
+
     /** Median brightness (0..1) of the status-bar background, skipping the clock and camera hole. */
     private Float topLuminance(Bitmap bmp) {
         int w = bmp.getWidth();
         int h = bmp.getHeight();
         int sbId = getResources().getIdentifier("status_bar_height", "dimen", "android");
         int sbH = sbId > 0 ? getResources().getDimensionPixelSize(sbId) : Math.round(28 * getResources().getDisplayMetrics().density);
-        Rect clock = ClockService.clockBounds();
+        List<Rect> labels = ClockService.labelBounds();
         // Rows near the top and bottom edge of the status bar, where icons don't reach.
         int[] rows = {Math.min(2, h - 1), Math.min(sbH - 2, h - 1), Math.min(sbH + 2, h - 1)};
         float[] values = new float[rows.length * 80];
@@ -116,8 +124,7 @@ public class ColorSenseService extends AccessibilityService {
             for (int i = 0; i < 80; i++) {
                 int x = (int) (w * (0.06f + 0.88f * i / 79f));
                 if (x > w * 0.40f && x < w * 0.60f) continue; // camera cut-out
-                if (clock != null && x >= clock.left - 6 && x <= clock.right + 6
-                        && y >= clock.top - 6 && y <= clock.bottom + 6) continue;
+                if (insideAny(labels, x, y)) continue;
                 int c = bmp.getPixel(x, y);
                 values[n++] = (0.2126f * Color.red(c) + 0.7152f * Color.green(c)
                         + 0.0722f * Color.blue(c)) / 255f;

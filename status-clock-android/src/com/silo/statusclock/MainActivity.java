@@ -29,6 +29,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Prefs.ensureDateDefaults(this);
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
         }
@@ -85,9 +86,15 @@ public class MainActivity extends Activity {
                 + "⋮ (למעלה) ← \"אפשר הגדרות מוגבלות\", ואז לנסות שוב.");
         root.addView(senseHelp);
 
-        root.addView(slider("גודל טקסט", Prefs.SIZE_SP, 8, 24, Prefs.sizeSp(this)));
-        root.addView(slider("מיקום אופקי (משמאל)", Prefs.X_DP, 0, 300, Prefs.xDp(this)));
-        root.addView(slider("מיקום אנכי (מלמעלה)", Prefs.Y_DP, 0, 60, Prefs.yDp(this)));
+        root.addView(header("שעה"));
+        root.addView(slider("גודל", Prefs.SIZE_SP, 8, 28, Prefs.sizeSp(this)));
+        root.addView(slider("מיקום אופקי (משמאל)", Prefs.X_DP, 0, 400, Prefs.xDp(this)));
+        root.addView(slider("מיקום אנכי (מלמעלה)", Prefs.Y_DP, 0, 80, Prefs.yDp(this)));
+
+        root.addView(header("תאריך"));
+        root.addView(slider("גודל", Prefs.DATE_SIZE_SP, 8, 28, Prefs.dateSizeSp(this)));
+        root.addView(slider("מיקום אופקי (משמאל)", Prefs.DATE_X_DP, 0, 400, Prefs.dateXDp(this)));
+        root.addView(slider("מיקום אנכי (מלמעלה)", Prefs.DATE_Y_DP, 0, 80, Prefs.dateYDp(this)));
 
         TextView tip = new TextView(this);
         tip.setPadding(0, dp(20), 0, 0);
@@ -136,6 +143,15 @@ public class MainActivity extends Activity {
         s.setPadding(0, dp(10), 0, dp(10));
         s.setOnCheckedChangeListener((b, on) -> Prefs.get(this).edit().putBoolean(key, on).apply());
         return s;
+    }
+
+    private View header(String text) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setPadding(0, dp(24), 0, 0);
+        return t;
     }
 
     private View colorPicker() {

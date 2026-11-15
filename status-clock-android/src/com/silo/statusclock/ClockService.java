@@ -27,30 +27,95 @@ import android.view.WindowManager;
 import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
-/** Foreground service that draws a clock (HH:mm:ss dd/MM/yyyy) over the status bar. */
+/**
+ * Foreground service that draws two independent labels over the status bar:
+ * the time (HH:mm:ss) and the date (dd/MM/yyyy), each with its own position and size.
+ */
 public class ClockService extends Service implements SharedPreferences.OnSharedPreferenceChangeListener {
     private static final String CHANNEL_ID = "clock";
     private static final int NOTIFICATION_ID = 1;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WindowManager windowManager;
-    private TextView clockView;
-    private WindowManager.LayoutParams params;
-    private SimpleDateFormat format;
+    private Label time;
+    private Label date;
+    private SimpleDateFormat timeFormat;
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.ROOT);
     private boolean ticking;
 
     private static ClockService instance;
     /** Last decision from ColorSenseService: true = light background, use black text. */
     private static boolean autoDarkText;
 
+    /** One floating text label and its window parameters. */
+    private final class Label {
+        final TextView view;
+        final WindowManager.LayoutParams params;
+        boolean attached;
+
+        Label() {
+            view = new TextView(ClockService.this);
+            view.setSingleLine(true);
+            view.setIncludeFontPadding(false);
+            view.setTextDirection(View.TEXT_DIRECTION_LTR);
+            view.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+            view.setFontFeatureSettings("tnum"); // fixed-width digits so the text doesn't jitter
+            params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    PixelFormat.TRANSLUCENT);
+            params.gravity = Gravity.TOP | Gravity.LEFT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                params.layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            }
+        }
+
+        void apply(boolean visible, int sizeSp, int xDp, int yDp) {
+            view.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
+            params.x = dp(xDp);
+            params.y = dp(yDp);
+            if (visible && !attached) {
+                windowManager.addView(view, params);
+                attached = true;
+            } else if (visible) {
+                windowManager.updateViewLayout(view, params);
+            } else if (attached) {
+                detach();
+            }
+        }
+
+        void detach() {
+            if (!attached) return;
+            try { windowManager.removeView(view); } catch (IllegalArgumentException ignored) {}
+            attached = false;
+        }
+
+        Rect bounds() {
+            if (!attached) return null;
+            int[] loc = new int[2];
+            view.getLocationOnScreen(loc);
+            return new Rect(loc[0], loc[1], loc[0] + view.getWidth(), loc[1] + view.getHeight());
+        }
+    }
+
     private final Runnable tick = new Runnable() {
         @Override public void run() {
-            if (clockView == null) return;
+            if (time == null) return;
             long now = System.currentTimeMillis();
-            clockView.setText(format.format(new Date(now)));
+            Date d = new Date(now);
+            time.view.setText(timeFormat.format(d));
+            date.view.setText(dateFormat.format(d));
             // Re-align to the start of the next second so the display never drifts.
             handler.postDelayed(this, 1000 - (now % 1000) + 5);
         }
@@ -61,9 +126,10 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
             String a = intent.getAction();
             if (Intent.ACTION_SCREEN_OFF.equals(a)) {
                 stopTicking();
-            } else if (Intent.ACTION_SCREEN_ON.equals(a) || Intent.ACTION_TIME_CHANGED.equals(a)
-                    || Intent.ACTION_TIMEZONE_CHANGED.equals(a)) {
-                buildFormat();
+            } else {
+                dateFormat.setTimeZone(java.util.TimeZone.getDefault());
+                buildTimeFormat();
+                stopTicking();
                 startTicking();
             }
         }
@@ -73,6 +139,7 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
 
     @Override public void onCreate() {
         super.onCreate();
+        Prefs.ensureDateDefaults(this);
         startAsForeground();
 
         if (!Settings.canDrawOverlays(this)) {
@@ -82,30 +149,9 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
 
         instance = this;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        clockView = new TextView(this);
-        clockView.setSingleLine(true);
-        clockView.setIncludeFontPadding(false);
-        clockView.setTextDirection(View.TEXT_DIRECTION_LTR);
-        clockView.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        clockView.setFontFeatureSettings("tnum"); // fixed-width digits so the text doesn't jitter
-
-        params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT);
-        params.gravity = Gravity.TOP | Gravity.LEFT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            params.layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-        }
-
+        time = new Label();
+        date = new Label();
         applyStyle();
-        windowManager.addView(clockView, params);
 
         Prefs.get(this).registerOnSharedPreferenceChangeListener(this);
 
@@ -129,42 +175,40 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
         stopTicking();
         Prefs.get(this).unregisterOnSharedPreferenceChangeListener(this);
         try { unregisterReceiver(screenReceiver); } catch (IllegalArgumentException ignored) {}
-        if (clockView != null && windowManager != null) {
-            try { windowManager.removeView(clockView); } catch (IllegalArgumentException ignored) {}
-        }
-        clockView = null;
+        if (time != null) time.detach();
+        if (date != null) date.detach();
+        time = null;
+        date = null;
         super.onDestroy();
     }
 
     @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-        if (clockView == null) return;
+        if (time == null) return;
         applyStyle();
-        windowManager.updateViewLayout(clockView, params);
         if (ticking) { stopTicking(); startTicking(); }
     }
 
-    private void buildFormat() {
-        String pattern = Prefs.showSeconds(this) ? "HH:mm:ss" : "HH:mm";
-        if (Prefs.showDate(this)) pattern += "  dd/MM/yyyy";
-        format = new SimpleDateFormat(pattern, Locale.ROOT);
+    private void buildTimeFormat() {
+        timeFormat = new SimpleDateFormat(Prefs.showSeconds(this) ? "HH:mm:ss" : "HH:mm", Locale.ROOT);
     }
 
     private void applyStyle() {
-        buildFormat();
-        clockView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Prefs.sizeSp(this));
+        buildTimeFormat();
+        time.apply(true, Prefs.sizeSp(this), Prefs.xDp(this), Prefs.yDp(this));
+        date.apply(Prefs.showDate(this), Prefs.dateSizeSp(this), Prefs.dateXDp(this), Prefs.dateYDp(this));
         applyColor();
-        params.x = dp(Prefs.xDp(this));
-        params.y = dp(Prefs.yDp(this));
     }
 
     private void applyColor() {
         int mode = Prefs.colorMode(this);
         boolean white = mode == Prefs.COLOR_WHITE
                 || (mode == Prefs.COLOR_AUTO && !(ColorSenseService.isRunning() && autoDarkText));
-        clockView.setTextColor(white ? Color.WHITE : Color.BLACK);
         // A soft halo only for fixed colours; in auto mode the colour already matches the background.
         float r = mode == Prefs.COLOR_AUTO && ColorSenseService.isRunning() ? 0f : 3f;
-        clockView.setShadowLayer(r, 0f, 0f, white ? 0xCC000000 : 0xCCFFFFFF);
+        for (Label l : new Label[]{time, date}) {
+            l.view.setTextColor(white ? Color.WHITE : Color.BLACK);
+            l.view.setShadowLayer(r, 0f, 0f, white ? 0xCC000000 : 0xCCFFFFFF);
+        }
     }
 
     /** Re-evaluate the colour, e.g. when the auto-colour service is switched on or off. */
@@ -172,15 +216,17 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
         if (isShowing()) instance.applyColor();
     }
 
-    static boolean isShowing() { return instance != null && instance.clockView != null; }
+    static boolean isShowing() { return instance != null && instance.time != null; }
 
-    /** Screen-space rectangle of the clock text, so the colour sampler can ignore it. */
-    static Rect clockBounds() {
-        if (!isShowing()) return null;
-        TextView v = instance.clockView;
-        int[] loc = new int[2];
-        v.getLocationOnScreen(loc);
-        return new Rect(loc[0], loc[1], loc[0] + v.getWidth(), loc[1] + v.getHeight());
+    /** Screen-space rectangles of the visible labels, so the colour sampler can ignore them. */
+    static List<Rect> labelBounds() {
+        List<Rect> out = new ArrayList<>();
+        if (!isShowing()) return out;
+        for (Label l : new Label[]{instance.time, instance.date}) {
+            Rect r = l.bounds();
+            if (r != null) out.add(r);
+        }
+        return out;
     }
 
     /** Called on the main thread with the status-bar background brightness (0 = black, 1 = white). */
@@ -190,7 +236,7 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
         else if (lum < 0.45f) dark = false;
         if (dark == autoDarkText) return;
         autoDarkText = dark;
-        if (isShowing()) instance.applyColor();
+        refreshColor();
     }
 
     private int dp(int v) {
@@ -199,7 +245,7 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
     }
 
     private void startTicking() {
-        if (ticking || clockView == null) return;
+        if (ticking || time == null) return;
         ticking = true;
         handler.removeCallbacks(tick);
         tick.run();
